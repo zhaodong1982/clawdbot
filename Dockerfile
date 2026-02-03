@@ -25,13 +25,15 @@ RUN curl -L https://github.com/steipete/gogcli/releases/download/v0.9.0/gogcli_0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY ui/package.json ./ui/package.json
 COPY patches ./patches
-# Only copy the specific script needed for postinstall to avoid cache bust from other scripts
-COPY scripts/postinstall.js ./scripts/postinstall.js
+# Only copy the specific scripts needed for postinstall to avoid cache bust from other scripts
+COPY scripts/postinstall.js scripts/setup-git-hooks.js ./scripts/
 
 # Use cache mount for pnpm storage to avoid re-downloading
+# Skip project-level postinstall tasks (git hooks, etc.) during Docker build
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm config set store-dir /pnpm/store && \
-    pnpm install --frozen-lockfile
+  export OPENCLAW_SKIP_POSTINSTALL=1 CLAWDBOT_SKIP_POSTINSTALL=1 && \
+  pnpm config set store-dir /pnpm/store && \
+  pnpm install --frozen-lockfile
 
 # Now copy the rest of the files
 COPY . .
