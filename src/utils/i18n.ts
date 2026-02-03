@@ -5,7 +5,7 @@ export type OpenClawLocale = "en-US" | "zh-CN";
 
 const translations: Record<OpenClawLocale, Record<string, string>> = {
   "en-US": {
-    "status.version": "OpenClaw",
+    "status.version": "MyClaw",
     "status.model": "Model",
     "status.usage": "Usage",
     "status.tokens": "Tokens",
@@ -73,7 +73,7 @@ const translations: Record<OpenClawLocale, Record<string, string>> = {
     "prompt.language_instruction": "Please respond in English.",
   },
   "zh-CN": {
-    "status.version": "OpenClaw",
+    "status.version": "MyClaw",
     "status.model": "模型",
     "status.usage": "用量",
     "status.tokens": "Token",

@@ -65,16 +65,16 @@ apps/ios/*.mobileprovision
 # Local untracked files
 .local/
 .vscode/
-IDENTITY.md
-USER.md
-MEMORY.md
-config/openclaw.json
-config/gogcli/
-.tgz
+config/
+workspace/
+.env*
+signal_qr.png
+*.tgz
 
 # local tooling
 .serena/
 
-# Secrets
+# Secrets (redundant but safe)
 client_secret.json
 credentials.json
+google_creds.json
