@@ -37,10 +37,15 @@ function formatBuildTime(iso?: string): string {
       hour12: false,
     });
     const parts = formatter.formatToParts(date);
-    const get = (type: string) => parts.find((p) => p.type === type)?.value;
-    return `${get("year")}-${get("month")}-${get("day")}-${get("hour")}:${get("minute")}`;
+    const get = (type: string) => parts.find((p) => p.type === type)?.value || "";
+    const yy = get("year").slice(-2);
+    const mm = get("month");
+    const dd = get("day");
+    const hh = get("hour");
+    const min = get("minute");
+    return `(B${yy}${mm}${dd}${hh}${min})`;
   } catch {
-    return "dev";
+    return "(Bdev)";
   }
 }
 
