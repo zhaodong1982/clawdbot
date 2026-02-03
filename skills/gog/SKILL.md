@@ -63,7 +63,7 @@ Organizing Gmail
 
 - List labels: `gog gmail labels list`
 - Modify thread labels (Archive/Label): `gog gmail thread modify <threadId> --add "LabelName" --remove "INBOX"`
-- Batch modify: `gog gmail batch modify --query "label:inbox from:news" --remove INBOX`
+- Batch modify (by IDs): `gog gmail batch modify <id1> <id2> --remove INBOX`
 
 Calendar Colors
 
