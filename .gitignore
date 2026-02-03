@@ -71,3 +71,7 @@ USER.md
 
 # local tooling
 .serena/
+
+# Secrets
+client_secret.json
+credentials.json
