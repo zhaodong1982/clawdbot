@@ -3,7 +3,7 @@ import { HEARTBEAT_TOKEN } from "./tokens.js";
 // Default heartbeat prompt (used when config.agents.defaults.heartbeat.prompt is unset).
 // Keep it tight and avoid encouraging the model to invent/rehash "open loops" from prior chat context.
 export const HEARTBEAT_PROMPT =
-  "Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK.";
+  "Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. Generate a structured report using 'Asia/Shanghai' time for timestamps. Ensure there are clear blank lines between sections (using ### as separators). If nothing needs attention, reply HEARTBEAT_OK.";
 export const DEFAULT_HEARTBEAT_EVERY = "30m";
 export const DEFAULT_HEARTBEAT_ACK_MAX_CHARS = 300;
 
@@ -89,7 +89,7 @@ function stripTokenAtEdges(raw: string): { text: string; didStrip: boolean } {
     }
   }
 
-  const collapsed = text.replace(/\s+/g, " ").trim();
+  const collapsed = text.replace(/[ \t]+/g, " ").trim();
   return { text: collapsed, didStrip };
 }
 
