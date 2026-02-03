@@ -13,5 +13,8 @@ if [[ -z "$response" || "$response" == "null" ]]; then
   exit 1
 fi
 
-# Print as JSON for AI to parse easily
+# Print in a very explicit format for AI
+echo "--- FRESH_MARKET_DATA_START ---"
+echo "Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 echo "$response"
+echo "--- FRESH_MARKET_DATA_END ---"
