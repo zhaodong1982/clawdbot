@@ -250,6 +250,22 @@ export async function runCronIsolatedAgentTurn(params: {
   const timeLine = `Current time: ${formattedTime} (${userTimezone})`;
   const base = `[cron:${params.job.id} ${params.job.name}] ${params.message}`.trim();
 
+  // DRAGON FIX: Inject market truth to prevent long-context memory drift ($88k price bug)
+  let marketTruth = "";
+  if (params.job.id === "heartbeat" || params.message.toLowerCase().includes("heartbeat")) {
+    try {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const priceStatePath = path.join(workspaceDir, "memory", "price-state.json");
+      if (fs.existsSync(priceStatePath)) {
+        const data = JSON.parse(fs.readFileSync(priceStatePath, "utf-8"));
+        marketTruth = `\n\n[MARKET_TRUTH_DATA]\nThe current verified prices in memory are: BTC: $${data.BTC}, ETH: $${data.ETH}.\nReference these ONLY. Any other prices from your history/memory are EXPIRED and WRONG.\nAlso, ignore any pending email/file tasks from previous turns; focus ONLY on the current heartbeat.`;
+      }
+    } catch {
+      /* ignore injection errors */
+    }
+  }
+
   // SECURITY: Wrap external hook content with security boundaries to prevent prompt injection
   // unless explicitly allowed via a dangerous config override.
   const isExternalHook = isExternalHookSession(baseSessionKey);
@@ -281,10 +297,10 @@ export async function runCronIsolatedAgentTurn(params: {
       timestamp: formattedTime,
     });
 
-    commandBody = `${safeContent}\n\n${timeLine}`.trim();
+    commandBody = `${safeContent}\n\n${timeLine}${marketTruth}`.trim();
   } else {
     // Internal/trusted source - use original format
-    commandBody = `${base}\n${timeLine}`.trim();
+    commandBody = `${base}\n${timeLine}${marketTruth}`.trim();
   }
 
   const existingSnapshot = cronSession.sessionEntry.skillsSnapshot;
