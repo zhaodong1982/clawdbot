@@ -16,28 +16,32 @@ RUN if [ -n "$OPENCLAW_DOCKER_APT_PACKAGES" ]; then \
   rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*; \
   fi
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-COPY ui/package.json ./ui/package.json
-COPY patches ./patches
-COPY scripts ./scripts
-
-# Install gog CLI
+# Install gog CLI (early to benefit from cache)
 RUN curl -L https://github.com/steipete/gogcli/releases/download/v0.9.0/gogcli_0.9.0_linux_arm64.tar.gz -o gogcli.tar.gz && \
   tar -xzf gogcli.tar.gz -C /usr/local/bin gog && \
   chmod +x /usr/local/bin/gog && \
   rm gogcli.tar.gz
 
-RUN pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY ui/package.json ./ui/package.json
+COPY patches ./patches
+# Only copy the specific script needed for postinstall to avoid cache bust from other scripts
+COPY scripts/postinstall.js ./scripts/postinstall.js
 
+# Use cache mount for pnpm storage to avoid re-downloading
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
+
+# Now copy the rest of the files
 COPY . .
+
 RUN OPENCLAW_A2UI_SKIP_MISSING=1 pnpm build
 # Force pnpm for UI build (Bun may fail on ARM/Synology architectures)
 ENV OPENCLAW_PREFER_PNPM=1
 RUN pnpm ui:build
 
-ENV NODE_ENV=production
-
-# Allow non-root user to write temp files during runtime/tests.
+# Security hardening: Run as non-root user
 RUN chown -R node:node /app
 
 # Security hardening: Run as non-root user
