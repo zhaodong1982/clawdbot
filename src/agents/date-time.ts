@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import type { OpenClawLocale } from "../utils/i18n.js";
 
 export type TimeFormatPreference = "auto" | "12" | "24";
 export type ResolvedTimeFormat = "12" | "24";
@@ -157,10 +158,12 @@ export function formatUserTime(
   date: Date,
   timeZone: string,
   format: ResolvedTimeFormat,
+  locale: OpenClawLocale = "en-US",
 ): string | undefined {
   const use24Hour = format === "24";
+  const localeId = locale === "zh-CN" ? "zh-CN" : "en-US";
   try {
-    const parts = new Intl.DateTimeFormat("en-US", {
+    const parts = new Intl.DateTimeFormat(localeId, {
       timeZone,
       weekday: "long",
       year: "numeric",
@@ -179,6 +182,14 @@ export function formatUserTime(
     if (!map.weekday || !map.year || !map.month || !map.day || !map.hour || !map.minute) {
       return undefined;
     }
+
+    if (localeId === "zh-CN") {
+      const timePart = use24Hour
+        ? `${map.hour}:${map.minute}`
+        : `${map.dayPeriod ?? ""} ${map.hour}:${map.minute}`;
+      return `${map.year}年${map.month}${map.day}日 ${map.weekday} — ${timePart}`;
+    }
+
     const dayNum = parseInt(map.day, 10);
     const suffix = ordinalSuffix(dayNum);
     const timePart = use24Hour

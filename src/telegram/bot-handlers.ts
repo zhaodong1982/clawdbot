@@ -376,15 +376,22 @@ export const registerTelegramHandlers = ({
           cfg,
           agentIds: agentId ? [agentId] : undefined,
         });
+        const locale = cfg.agents?.defaults?.language ?? "en-US";
         const result = buildCommandsMessagePaginated(cfg, skillCommands, {
           page,
           surface: "telegram",
+          locale,
         });
 
         const keyboard =
           result.totalPages > 1
             ? buildInlineKeyboard(
-                buildCommandsPaginationKeyboard(result.currentPage, result.totalPages, agentId),
+                buildCommandsPaginationKeyboard(
+                  result.currentPage,
+                  result.totalPages,
+                  agentId,
+                  locale,
+                ),
               )
             : undefined;
 

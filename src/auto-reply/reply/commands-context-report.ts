@@ -15,6 +15,7 @@ import { buildAgentSystemPrompt } from "../../agents/system-prompt.js";
 import { buildToolSummaryMap } from "../../agents/tool-summaries.js";
 import { getRemoteSkillEligibility } from "../../infra/skills-remote.js";
 import { buildTtsSystemPromptHint } from "../../tts/tts.js";
+import { type OpenClawLocale, t } from "../../utils/i18n.js";
 
 function estimateTokensFromChars(chars: number): number {
   return Math.ceil(Math.max(0, chars) / 4);
@@ -24,8 +25,9 @@ function formatInt(n: number): string {
   return new Intl.NumberFormat("en-US").format(n);
 }
 
-function formatCharsAndTokens(chars: number): string {
-  return `${formatInt(chars)} chars (~${formatInt(estimateTokensFromChars(chars))} tok)`;
+function formatCharsAndTokens(chars: number, locale: OpenClawLocale = "en-US"): string {
+  const tokLabel = locale === "zh-CN" ? "tok" : "tok"; // "tok" is probably fine in both, or "块"
+  return `${formatInt(chars)} ${t("context.chars", locale)} (~${formatInt(estimateTokensFromChars(chars))} ${t("context.tokens", locale)})`;
 }
 
 function parseContextArgs(commandBodyNormalized: string): string {
@@ -41,11 +43,12 @@ function parseContextArgs(commandBodyNormalized: string): string {
 function formatListTop(
   entries: Array<{ name: string; value: number }>,
   cap: number,
+  locale: OpenClawLocale = "en-US",
 ): { lines: string[]; omitted: number } {
   const sorted = [...entries].toSorted((a, b) => b.value - a.value);
   const top = sorted.slice(0, cap);
   const omitted = Math.max(0, sorted.length - top.length);
-  const lines = top.map((e) => `- ${e.name}: ${formatCharsAndTokens(e.value)}`);
+  const lines = top.map((e) => `- ${e.name}: ${formatCharsAndTokens(e.value, locale)}`);
   return { lines, omitted };
 }
 
@@ -156,6 +159,7 @@ async function resolveContextReport(
     ttsHint,
     runtimeInfo,
     sandboxInfo,
+    language: params.cfg?.agents?.defaults?.language,
   });
 
   return buildSystemPromptReport({
@@ -179,6 +183,7 @@ async function resolveContextReport(
 export async function buildContextReply(params: HandleCommandsParams): Promise<ReplyPayload> {
   const args = parseContextArgs(params.command.commandBodyNormalized);
   const sub = args.split(/\s+/).filter(Boolean)[0]?.toLowerCase() ?? "";
+  const locale: OpenClawLocale = params.cfg?.agents?.defaults?.language ?? "en-US";
 
   if (!sub || sub === "help") {
     return {
@@ -219,15 +224,20 @@ export async function buildContextReply(params: HandleCommandsParams): Promise<R
   }
 
   const fileLines = report.injectedWorkspaceFiles.map((f) => {
-    const status = f.missing ? "MISSING" : f.truncated ? "TRUNCATED" : "OK";
-    const raw = f.missing ? "0" : formatCharsAndTokens(f.rawChars);
-    const injected = f.missing ? "0" : formatCharsAndTokens(f.injectedChars);
-    return `- ${f.name}: ${status} | raw ${raw} | injected ${injected}`;
+    const statusKey = f.missing
+      ? "context.missing"
+      : f.truncated
+        ? "context.truncated"
+        : "context.ok";
+    const status = t(statusKey, locale);
+    const raw = f.missing ? "0" : formatCharsAndTokens(f.rawChars, locale);
+    const injected = f.missing ? "0" : formatCharsAndTokens(f.injectedChars, locale);
+    return `- ${f.name}: ${status} | ${t("context.raw", locale)} ${raw} | ${t("context.injected", locale)} ${injected}`;
   });
 
-  const sandboxLine = `Sandbox: mode=${report.sandbox?.mode ?? "unknown"} sandboxed=${report.sandbox?.sandboxed ?? false}`;
-  const toolSchemaLine = `Tool schemas (JSON): ${formatCharsAndTokens(report.tools.schemaChars)} (counts toward context; not shown as text)`;
-  const toolListLine = `Tool list (system prompt text): ${formatCharsAndTokens(report.tools.listChars)}`;
+  const sandboxLine = `${t("context.sandbox", locale)}: mode=${report.sandbox?.mode ?? "unknown"} sandboxed=${report.sandbox?.sandboxed ?? false}`;
+  const toolSchemaLine = `${t("context.tool_schemas", locale)}: ${formatCharsAndTokens(report.tools.schemaChars, locale)} (counts toward context; not shown as text)`;
+  const toolListLine = `${t("context.tools", locale)} (system prompt text): ${formatCharsAndTokens(report.tools.listChars, locale)}`;
   const skillNameSet = new Set(report.skills.entries.map((s) => s.name));
   const skillNames = Array.from(skillNameSet);
   const toolNames = report.tools.entries.map((t) => t.name);
@@ -235,14 +245,14 @@ export async function buildContextReply(params: HandleCommandsParams): Promise<R
     names.length <= cap
       ? names.join(", ")
       : `${names.slice(0, cap).join(", ")}, … (+${names.length - cap} more)`;
-  const skillsLine = `Skills list (system prompt text): ${formatCharsAndTokens(report.skills.promptChars)} (${skillNameSet.size} skills)`;
+  const skillsLine = `${t("context.skills", locale)} (system prompt text): ${formatCharsAndTokens(report.skills.promptChars, locale)} (${skillNameSet.size} skills)`;
   const skillsNamesLine = skillNameSet.size
-    ? `Skills: ${formatNameList(skillNames, 20)}`
-    : "Skills: (none)";
+    ? `${t("context.skills", locale)}: ${formatNameList(skillNames, 20)}`
+    : `${t("context.skills", locale)}: (none)`;
   const toolsNamesLine = toolNames.length
-    ? `Tools: ${formatNameList(toolNames, 30)}`
-    : "Tools: (none)";
-  const systemPromptLine = `System prompt (${report.source}): ${formatCharsAndTokens(report.systemPrompt.chars)} (Project Context ${formatCharsAndTokens(report.systemPrompt.projectContextChars)})`;
+    ? `${t("context.tools", locale)}: ${formatNameList(toolNames, 30)}`
+    : `${t("context.tools", locale)}: (none)`;
+  const systemPromptLine = `${t("context.system_prompt", locale)} (${report.source}): ${formatCharsAndTokens(report.systemPrompt.chars, locale)} (Project Context ${formatCharsAndTokens(report.systemPrompt.projectContextChars, locale)})`;
   const workspaceLabel = report.workspaceDir ?? params.workspaceDir;
   const bootstrapMaxLabel =
     typeof report.bootstrapMaxChars === "number"
@@ -251,21 +261,24 @@ export async function buildContextReply(params: HandleCommandsParams): Promise<R
 
   const totalsLine =
     session.totalTokens != null
-      ? `Session tokens (cached): ${formatInt(session.totalTokens)} total / ctx=${session.contextTokens ?? "?"}`
-      : `Session tokens (cached): unknown / ctx=${session.contextTokens ?? "?"}`;
+      ? `${t("context.totals", locale)}: ${formatInt(session.totalTokens)} total / ctx=${session.contextTokens ?? "?"}`
+      : `${t("context.totals", locale)}: unknown / ctx=${session.contextTokens ?? "?"}`;
 
   if (sub === "detail" || sub === "deep") {
     const perSkill = formatListTop(
       report.skills.entries.map((s) => ({ name: s.name, value: s.blockChars })),
       30,
+      locale,
     );
     const perToolSchema = formatListTop(
       report.tools.entries.map((t) => ({ name: t.name, value: t.schemaChars })),
       30,
+      locale,
     );
     const perToolSummary = formatListTop(
       report.tools.entries.map((t) => ({ name: t.name, value: t.summaryChars })),
       30,
+      locale,
     );
     const toolPropsLines = report.tools.entries
       .filter((t) => t.propertiesCount != null)
@@ -275,13 +288,13 @@ export async function buildContextReply(params: HandleCommandsParams): Promise<R
 
     return {
       text: [
-        "🧠 Context breakdown (detailed)",
-        `Workspace: ${workspaceLabel}`,
-        `Bootstrap max/file: ${bootstrapMaxLabel}`,
+        `🧠 ${t("context.title", locale)} (detailed)`,
+        `${t("context.workspace", locale)}: ${workspaceLabel}`,
+        `${t("context.bootstrap", locale)}: ${bootstrapMaxLabel}`,
         sandboxLine,
         systemPromptLine,
         "",
-        "Injected workspace files:",
+        `${t("context.files", locale)}:`,
         ...fileLines,
         "",
         skillsLine,
@@ -303,7 +316,7 @@ export async function buildContextReply(params: HandleCommandsParams): Promise<R
         "",
         totalsLine,
         "",
-        "Inline shortcut: a command token inside normal text (e.g. “hey /status”) that runs immediately (allowlisted senders only) and is stripped before the model sees the remaining message.",
+        t("context.shortcut", locale),
       ]
         .filter(Boolean)
         .join("\n"),
@@ -312,13 +325,13 @@ export async function buildContextReply(params: HandleCommandsParams): Promise<R
 
   return {
     text: [
-      "🧠 Context breakdown",
-      `Workspace: ${workspaceLabel}`,
-      `Bootstrap max/file: ${bootstrapMaxLabel}`,
+      `🧠 ${t("context.title", locale)}`,
+      `${t("context.workspace", locale)}: ${workspaceLabel}`,
+      `${t("context.bootstrap", locale)}: ${bootstrapMaxLabel}`,
       sandboxLine,
       systemPromptLine,
       "",
-      "Injected workspace files:",
+      `${t("context.files", locale)}:`,
       ...fileLines,
       "",
       skillsLine,
@@ -329,7 +342,7 @@ export async function buildContextReply(params: HandleCommandsParams): Promise<R
       "",
       totalsLine,
       "",
-      "Inline shortcut: a command token inside normal text (e.g. “hey /status”) that runs immediately (allowlisted senders only) and is stripped before the model sees the remaining message.",
+      t("context.shortcut", locale),
     ].join("\n"),
   };
 }

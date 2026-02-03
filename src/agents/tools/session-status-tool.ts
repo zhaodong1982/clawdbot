@@ -39,6 +39,7 @@ import {
   resolveAgentIdFromSessionKey,
 } from "../../routing/session-key.js";
 import { applyModelOverrideToSessionEntry } from "../../sessions/model-overrides.js";
+import { type OpenClawLocale, t } from "../../utils/i18n.js";
 import { formatUserTime, resolveUserTimeFormat, resolveUserTimezone } from "../date-time.js";
 import { readStringParam } from "./common.js";
 import {
@@ -389,7 +390,8 @@ export function createSessionStatusTool(opts?: {
               includeResets: true,
             });
             if (formatted && !formatted.startsWith("error:")) {
-              usageLine = `📊 Usage: ${formatted}`;
+              const locale: OpenClawLocale = cfg.agents?.defaults?.language ?? "en-US";
+              usageLine = `📊 ${t("status.usage", locale)}: ${formatted}`;
             }
           }
         } catch {
@@ -417,12 +419,13 @@ export function createSessionStatusTool(opts?: {
         resolved.entry.queueDebounceMs ?? resolved.entry.queueCap ?? resolved.entry.queueDrop,
       );
 
+      const locale: OpenClawLocale = cfg.agents?.defaults?.language ?? "en-US";
       const userTimezone = resolveUserTimezone(cfg.agents?.defaults?.userTimezone);
       const userTimeFormat = resolveUserTimeFormat(cfg.agents?.defaults?.timeFormat);
-      const userTime = formatUserTime(new Date(), userTimezone, userTimeFormat);
+      const userTime = formatUserTime(new Date(), userTimezone, userTimeFormat, locale);
       const timeLine = userTime
-        ? `🕒 Time: ${userTime} (${userTimezone})`
-        : `🕒 Time zone: ${userTimezone}`;
+        ? `🕒 ${locale === "zh-CN" ? "时间" : "Time"}: ${userTime} (${userTimezone})`
+        : `🕒 ${locale === "zh-CN" ? "时区" : "Time zone"}: ${userTimezone}`;
 
       const agentDefaults = cfg.agents?.defaults ?? {};
       const defaultLabel = `${configured.provider}/${configured.model}`;
@@ -456,6 +459,7 @@ export function createSessionStatusTool(opts?: {
           showDetails: queueOverrides,
         },
         includeTranscriptUsage: false,
+        locale,
       });
 
       return {

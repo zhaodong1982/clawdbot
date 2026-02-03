@@ -24,7 +24,7 @@ export const handleHelpCommand: CommandHandler = async (params, allowTextCommand
   }
   return {
     shouldContinue: false,
-    reply: { text: buildHelpMessage(params.cfg) },
+    reply: { text: buildHelpMessage(params.cfg, params.cfg?.agents?.defaults?.language) },
   };
 };
 
@@ -48,11 +48,13 @@ export const handleCommandsListCommand: CommandHandler = async (params, allowTex
       agentIds: params.agentId ? [params.agentId] : undefined,
     });
   const surface = params.ctx.Surface;
+  const locale = params.cfg?.agents?.defaults?.language ?? "en-US";
 
   if (surface === "telegram") {
     const result = buildCommandsMessagePaginated(params.cfg, skillCommands, {
       page: 1,
       surface,
+      locale,
     });
 
     if (result.totalPages > 1) {
@@ -66,6 +68,7 @@ export const handleCommandsListCommand: CommandHandler = async (params, allowTex
                 result.currentPage,
                 result.totalPages,
                 params.agentId,
+                locale,
               ),
             },
           },
@@ -81,7 +84,7 @@ export const handleCommandsListCommand: CommandHandler = async (params, allowTex
 
   return {
     shouldContinue: false,
-    reply: { text: buildCommandsMessage(params.cfg, skillCommands, { surface }) },
+    reply: { text: buildCommandsMessage(params.cfg, skillCommands, { surface, locale }) },
   };
 };
 
@@ -89,13 +92,14 @@ export function buildCommandsPaginationKeyboard(
   currentPage: number,
   totalPages: number,
   agentId?: string,
+  locale: "en-US" | "zh-CN" = "en-US",
 ): Array<Array<{ text: string; callback_data: string }>> {
   const buttons: Array<{ text: string; callback_data: string }> = [];
   const suffix = agentId ? `:${agentId}` : "";
 
   if (currentPage > 1) {
     buttons.push({
-      text: "◀ Prev",
+      text: locale === "zh-CN" ? "◀ 上一页" : "◀ Prev",
       callback_data: `commands_page_${currentPage - 1}${suffix}`,
     });
   }
@@ -107,7 +111,7 @@ export function buildCommandsPaginationKeyboard(
 
   if (currentPage < totalPages) {
     buttons.push({
-      text: "Next ▶",
+      text: locale === "zh-CN" ? "下一页 ▶" : "Next ▶",
       callback_data: `commands_page_${currentPage + 1}${suffix}`,
     });
   }

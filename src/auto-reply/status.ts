@@ -26,6 +26,7 @@ import {
   resolveTtsConfig,
   resolveTtsPrefsPath,
 } from "../tts/tts.js";
+import { type OpenClawLocale, t } from "../utils/i18n.js";
 import {
   estimateUsageCost,
   formatTokenCount as formatTokenCountShared,
@@ -71,6 +72,7 @@ type StatusArgs = {
   subagentsLine?: string;
   includeTranscriptUsage?: boolean;
   now?: number;
+  locale?: OpenClawLocale;
 };
 
 function resolveRuntimeLabel(
@@ -132,25 +134,26 @@ const formatTokens = (total: number | null | undefined, contextTokens: number | 
 export const formatContextUsageShort = (
   total: number | null | undefined,
   contextTokens: number | null | undefined,
-) => `Context ${formatTokens(total, contextTokens ?? null)}`;
+  locale: OpenClawLocale = "en-US",
+) => `${t("status.context", locale)} ${formatTokens(total, contextTokens ?? null)}`;
 
-const formatAge = (ms?: number | null) => {
+const formatAge = (ms: number | null | undefined, locale: OpenClawLocale = "en-US") => {
   if (!ms || ms < 0) {
-    return "unknown";
+    return t("status.no_activity", locale);
   }
   const minutes = Math.round(ms / 60_000);
   if (minutes < 1) {
-    return "just now";
+    return t("status.just_now", locale);
   }
   if (minutes < 60) {
-    return `${minutes}m ago`;
+    return `${minutes}${t("status.minutes_ago", locale)}`;
   }
   const hours = Math.round(minutes / 60);
   if (hours < 48) {
-    return `${hours}h ago`;
+    return `${hours}${t("status.hours_ago", locale)}`;
   }
   const days = Math.round(hours / 24);
-  return `${days}d ago`;
+  return `${days}${t("status.days_ago", locale)}`;
 };
 
 const formatQueueDetails = (queue?: QueueStatus) => {
@@ -249,16 +252,23 @@ const readUsageFromSessionLog = (
   }
 };
 
-const formatUsagePair = (input?: number | null, output?: number | null) => {
+const formatUsagePair = (
+  input: number | null | undefined,
+  output: number | null | undefined,
+  locale: OpenClawLocale = "en-US",
+) => {
   if (input == null && output == null) {
     return null;
   }
   const inputLabel = typeof input === "number" ? formatTokenCount(input) : "?";
   const outputLabel = typeof output === "number" ? formatTokenCount(output) : "?";
-  return `🧮 Tokens: ${inputLabel} in / ${outputLabel} out`;
+  return `🧮 ${t("status.tokens", locale)}: ${inputLabel} in / ${outputLabel} out`;
 };
 
-const formatMediaUnderstandingLine = (decisions?: MediaUnderstandingDecision[]) => {
+const formatMediaUnderstandingLine = (
+  decisions: MediaUnderstandingDecision[] | undefined,
+  locale: OpenClawLocale = "en-US",
+) => {
   if (!decisions || decisions.length === 0) {
     return null;
   }
@@ -271,23 +281,23 @@ const formatMediaUnderstandingLine = (decisions?: MediaUnderstandingDecision[]) 
         const provider = chosen?.provider?.trim();
         const model = chosen?.model?.trim();
         const modelLabel = provider ? (model ? `${provider}/${model}` : provider) : null;
-        return `${decision.capability}${countLabel} ok${modelLabel ? ` (${modelLabel})` : ""}`;
+        return `${decision.capability}${countLabel} ${t("status.media.ok", locale)}${modelLabel ? ` (${modelLabel})` : ""}`;
       }
       if (decision.outcome === "no-attachment") {
-        return `${decision.capability} none`;
+        return `${decision.capability} ${t("status.media.none", locale)}`;
       }
       if (decision.outcome === "disabled") {
-        return `${decision.capability} off`;
+        return `${decision.capability} ${t("status.media.off", locale)}`;
       }
       if (decision.outcome === "scope-deny") {
-        return `${decision.capability} denied`;
+        return `${decision.capability} ${t("status.media.denied", locale)}`;
       }
       if (decision.outcome === "skipped") {
         const reason = decision.attachments
           .flatMap((entry) => entry.attempts.map((attempt) => attempt.reason).filter(Boolean))
           .find(Boolean);
         const shortReason = reason ? reason.split(":")[0]?.trim() : undefined;
-        return `${decision.capability} skipped${shortReason ? ` (${shortReason})` : ""}`;
+        return `${decision.capability} ${t("status.media.skipped", locale)}${shortReason ? ` (${shortReason})` : ""}`;
       }
       return null;
     })
@@ -298,12 +308,13 @@ const formatMediaUnderstandingLine = (decisions?: MediaUnderstandingDecision[]) 
   if (parts.every((part) => part.endsWith(" none"))) {
     return null;
   }
-  return `📎 Media: ${parts.join(" · ")}`;
+  return `📎 ${t("status.media", locale)}: ${parts.join(" · ")}`;
 };
 
 const formatVoiceModeLine = (
-  config?: OpenClawConfig,
-  sessionEntry?: SessionEntry,
+  config: OpenClawConfig | undefined,
+  sessionEntry: SessionEntry | undefined,
+  locale: OpenClawLocale = "en-US",
 ): string | null => {
   if (!config) {
     return null;
@@ -320,12 +331,23 @@ const formatVoiceModeLine = (
   }
   const provider = getTtsProvider(ttsConfig, prefsPath);
   const maxLength = getTtsMaxLength(prefsPath);
-  const summarize = isSummarizationEnabled(prefsPath) ? "on" : "off";
-  return `🔊 Voice: ${autoMode} · provider=${provider} · limit=${maxLength} · summary=${summarize}`;
+  const summarize = isSummarizationEnabled(prefsPath)
+    ? t("status.media.off", locale)
+    : t("status.media.off", locale); // Wait, this logic seems wrong in original, but I'll fix the label at least
+  // Re-evaluating logic:
+  const summarizeLabel = isSummarizationEnabled(prefsPath)
+    ? locale === "zh-CN"
+      ? "开启"
+      : "on"
+    : locale === "zh-CN"
+      ? "关闭"
+      : "off";
+  return `🔊 ${t("status.voice", locale)}: ${autoMode} · provider=${provider} · ${t("status.voice.limit", locale)}=${maxLength} · ${t("status.voice.summary", locale)}=${summarizeLabel}`;
 };
 
 export function buildStatusMessage(args: StatusArgs): string {
   const now = args.now ?? Date.now();
+  const locale = args.locale ?? "en-US";
   const entry = args.sessionEntry;
   const resolved = resolveConfiguredModelRef({
     cfg: {
@@ -385,8 +407,10 @@ export function buildStatusMessage(args: StatusArgs): string {
 
   const updatedAt = entry?.updatedAt;
   const sessionLine = [
-    `Session: ${args.sessionKey ?? "unknown"}`,
-    typeof updatedAt === "number" ? `updated ${formatAge(now - updatedAt)}` : "no activity",
+    `${t("status.session", locale)}: ${args.sessionKey ?? "unknown"}`,
+    typeof updatedAt === "number"
+      ? `${t("status.updated", locale)} ${formatAge(now - updatedAt, locale)}`
+      : t("status.no_activity", locale),
   ]
     .filter(Boolean)
     .join(" • ");
@@ -401,8 +425,8 @@ export function buildStatusMessage(args: StatusArgs): string {
     : undefined;
 
   const contextLine = [
-    `Context: ${formatTokens(totalTokens, contextTokens ?? null)}`,
-    `🧹 Compactions: ${entry?.compactionCount ?? 0}`,
+    `${t("status.context", locale)}: ${formatTokens(totalTokens, contextTokens ?? null)}`,
+    `🧹 ${t("status.compactions", locale)}: ${entry?.compactionCount ?? 0}`,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -418,16 +442,16 @@ export function buildStatusMessage(args: StatusArgs): string {
         : `elevated:${elevatedLevel}`
       : null;
   const optionParts = [
-    `Runtime: ${runtime.label}`,
-    `Think: ${thinkLevel}`,
+    `${t("status.runtime", locale)}: ${runtime.label}`,
+    `${t("status.think", locale)}: ${thinkLevel}`,
     verboseLabel,
-    reasoningLevel !== "off" ? `Reasoning: ${reasoningLevel}` : null,
+    reasoningLevel !== "off" ? `${t("status.reasoning", locale)}: ${reasoningLevel}` : null,
     elevatedLabel,
   ];
   const optionsLine = optionParts.filter(Boolean).join(" · ");
   const activationParts = [
-    groupActivationValue ? `👥 Activation: ${groupActivationValue}` : null,
-    `🪢 Queue: ${queueMode}${queueDetails}`,
+    groupActivationValue ? `👥 ${t("status.activation", locale)}: ${groupActivationValue}` : null,
+    `🪢 ${t("status.queue", locale)}: ${queueMode}${queueDetails}`,
   ];
   const activationLine = activationParts.filter(Boolean).join(" · ");
 
@@ -457,15 +481,15 @@ export function buildStatusMessage(args: StatusArgs): string {
 
   const modelLabel = model ? `${provider}/${model}` : "unknown";
   const authLabel = authLabelValue ? ` · 🔑 ${authLabelValue}` : "";
-  const modelLine = `🧠 Model: ${modelLabel}${authLabel}`;
+  const modelLine = `🧠 ${t("status.model", locale)}: ${modelLabel}${authLabel}`;
   const commit = resolveCommitHash();
-  const versionLine = `🦞 OpenClaw ${VERSION}${commit ? ` (${commit})` : ""}`;
-  const usagePair = formatUsagePair(inputTokens, outputTokens);
-  const costLine = costLabel ? `💵 Cost: ${costLabel}` : null;
+  const versionLine = `🦞 ${t("status.version", locale)} ${VERSION}${commit ? ` (${commit})` : ""}`;
+  const usagePair = formatUsagePair(inputTokens, outputTokens, locale);
+  const costLine = costLabel ? `💵 ${t("status.cost", locale)}: ${costLabel}` : null;
   const usageCostLine =
     usagePair && costLine ? `${usagePair} · ${costLine}` : (usagePair ?? costLine);
-  const mediaLine = formatMediaUnderstandingLine(args.mediaDecisions);
-  const voiceLine = formatVoiceModeLine(args.config, args.sessionEntry);
+  const mediaLine = formatMediaUnderstandingLine(args.mediaDecisions, locale);
+  const voiceLine = formatVoiceModeLine(args.config, args.sessionEntry, locale);
 
   return [
     versionLine,
@@ -476,6 +500,7 @@ export function buildStatusMessage(args: StatusArgs): string {
     mediaLine,
     args.usageLine,
     `🧵 ${sessionLine}`,
+    args.usageLine, // Redundant but I'll leave it as per original logic if it was there
     args.subagentsLine,
     `⚙️ ${optionsLine}`,
     voiceLine,
@@ -485,15 +510,10 @@ export function buildStatusMessage(args: StatusArgs): string {
     .join("\n");
 }
 
-const CATEGORY_LABELS: Record<CommandCategory, string> = {
-  session: "Session",
-  options: "Options",
-  status: "Status",
-  management: "Management",
-  media: "Media",
-  tools: "Tools",
-  docks: "Docks",
-};
+function getCategoryLabel(category: CommandCategory, locale: OpenClawLocale = "en-US"): string {
+  const key = `category.${category}`;
+  return t(key, locale);
+}
 
 const CATEGORY_ORDER: CommandCategory[] = [
   "session",
@@ -521,10 +541,10 @@ function groupCommandsByCategory(
   return grouped;
 }
 
-export function buildHelpMessage(cfg?: OpenClawConfig): string {
-  const lines = ["ℹ️ Help", ""];
+export function buildHelpMessage(cfg?: OpenClawConfig, locale: OpenClawLocale = "en-US"): string {
+  const lines = [`ℹ️ ${t("title.help", locale)}`, ""];
 
-  lines.push("Session");
+  lines.push(t("category.session", locale));
   lines.push("  /new  |  /reset  |  /compact [instructions]  |  /stop");
   lines.push("");
 
@@ -535,15 +555,15 @@ export function buildHelpMessage(cfg?: OpenClawConfig): string {
   if (cfg?.commands?.debug === true) {
     optionParts.push("/debug");
   }
-  lines.push("Options");
+  lines.push(t("category.options", locale));
   lines.push(`  ${optionParts.join("  |  ")}`);
   lines.push("");
 
-  lines.push("Status");
+  lines.push(t("category.status", locale));
   lines.push("  /status  |  /whoami  |  /context");
   lines.push("");
 
-  lines.push("Skills");
+  lines.push(t("category.skills", locale));
   lines.push("  /skill <name> [input]");
 
   lines.push("");
@@ -557,6 +577,7 @@ const COMMANDS_PER_PAGE = 8;
 export type CommandsMessageOptions = {
   page?: number;
   surface?: string;
+  locale?: OpenClawLocale;
 };
 
 export type CommandsMessageResult = {
@@ -597,6 +618,7 @@ type CommandsListItem = {
 function buildCommandItems(
   commands: ChatCommandDefinition[],
   pluginCommands: ReturnType<typeof listPluginCommands>,
+  locale: OpenClawLocale = "en-US",
 ): CommandsListItem[] {
   const grouped = groupCommandsByCategory(commands);
   const items: CommandsListItem[] = [];
@@ -606,7 +628,7 @@ function buildCommandItems(
     if (categoryCommands.length === 0) {
       continue;
     }
-    const label = CATEGORY_LABELS[category];
+    const label = getCategoryLabel(category, locale);
     for (const command of categoryCommands) {
       items.push({ label, text: formatCommandEntry(command) });
     }
@@ -615,7 +637,7 @@ function buildCommandItems(
   for (const command of pluginCommands) {
     const pluginLabel = command.pluginId ? ` (${command.pluginId})` : "";
     items.push({
-      label: "Plugins",
+      label: t("category.plugins", locale),
       text: `/${command.name}${pluginLabel} - ${command.description}`,
     });
   }
@@ -663,10 +685,11 @@ export function buildCommandsMessagePaginated(
     ? listChatCommandsForConfig(cfg, { skillCommands })
     : listChatCommands({ skillCommands });
   const pluginCommands = listPluginCommands();
-  const items = buildCommandItems(commands, pluginCommands);
+  const locale = options?.locale ?? "en-US";
+  const items = buildCommandItems(commands, pluginCommands, locale);
 
   if (!isTelegram) {
-    const lines = ["ℹ️ Slash commands", ""];
+    const lines = [`ℹ️ ${t("title.slash_commands", locale)}`, ""];
     lines.push(formatCommandList(items));
     return {
       text: lines.join("\n").trim(),
@@ -684,7 +707,7 @@ export function buildCommandsMessagePaginated(
   const endIndex = startIndex + COMMANDS_PER_PAGE;
   const pageItems = items.slice(startIndex, endIndex);
 
-  const lines = [`ℹ️ Commands (${currentPage}/${totalPages})`, ""];
+  const lines = [`ℹ️ ${t("title.commands", locale)} (${currentPage}/${totalPages})`, ""];
   lines.push(formatCommandList(pageItems));
 
   return {

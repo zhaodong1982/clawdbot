@@ -2,6 +2,7 @@ import type { ReasoningLevel, ThinkLevel } from "../auto-reply/thinking.js";
 import type { ResolvedTimeFormat } from "./date-time.js";
 import type { EmbeddedContextFile } from "./pi-embedded-helpers.js";
 import { SILENT_REPLY_TOKEN } from "../auto-reply/tokens.js";
+import { type OpenClawLocale, t } from "../utils/i18n.js";
 import { listDeliverableMessageChannels } from "../utils/message-channel.js";
 
 /**
@@ -213,6 +214,8 @@ export function buildAgentSystemPrompt(params: {
     level: "minimal" | "extensive";
     channel: string;
   };
+  /** Preferred language for the AI response. */
+  language?: OpenClawLocale;
 }) {
   const coreToolSummaries: Record<string, string> = {
     read: "Read file contents",
@@ -366,6 +369,7 @@ export function buildAgentSystemPrompt(params: {
 
   const lines = [
     "You are a personal assistant running inside OpenClaw.",
+    params.language ? t("prompt.language_instruction", params.language) : "",
     "",
     "## Tooling",
     "Tool availability (filtered by policy):",

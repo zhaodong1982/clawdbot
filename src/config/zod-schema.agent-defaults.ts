@@ -168,6 +168,7 @@ export const AgentDefaultsSchema = z
       })
       .strict()
       .optional(),
+    language: z.enum(["en-US", "zh-CN"]).optional(),
   })
   .strict()
   .optional();

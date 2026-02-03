@@ -425,4 +425,13 @@ describe("buildAgentSystemPrompt", () => {
     expect(prompt).toContain("## Reactions");
     expect(prompt).toContain("Reactions are enabled for Telegram in MINIMAL mode.");
   });
+
+  it("includes language instruction when provided", () => {
+    const prompt = buildAgentSystemPrompt({
+      workspaceDir: "/tmp/openclaw",
+      language: "zh-CN",
+    });
+
+    expect(prompt).toContain("请使用中文回复。");
+  });
 });

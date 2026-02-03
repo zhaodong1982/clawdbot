@@ -237,6 +237,8 @@ export type AgentDefaultsConfig = {
     /** Auto-prune sandbox containers. */
     prune?: SandboxPruneSettings;
   };
+  /** Preferred language for reports and AI responses (en-US or zh-CN). */
+  language?: "en-US" | "zh-CN";
 };
 
 export type AgentCompactionMode = "default" | "safeguard";
