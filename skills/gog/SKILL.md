@@ -57,6 +57,13 @@ Common commands
 - Sheets metadata: `gog sheets metadata <sheetId> --json`
 - Docs export: `gog docs export <docId> --format txt --out /tmp/doc.txt`
 - Docs cat: `gog docs cat <docId>`
+- **Getting help**: Use `--help` on any command, e.g., `gog gmail --help` or `gog gmail thread modify --help`. (Do NOT use a `help` subcommand).
+
+Organizing Gmail
+
+- List labels: `gog gmail labels list`
+- Modify thread labels (Archive/Label): `gog gmail thread modify <threadId> --add "LabelName" --remove "INBOX"`
+- Batch modify: `gog gmail batch modify --query "label:inbox from:news" --remove INBOX`
 
 Calendar Colors
 
