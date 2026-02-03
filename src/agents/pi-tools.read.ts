@@ -3,6 +3,7 @@ import { createEditTool, createReadTool, createWriteTool } from "@mariozechner/p
 import type { AnyAgentTool } from "./pi-tools.types.js";
 import { detectMime } from "../media/mime.js";
 import { assertSandboxPath } from "./sandbox-paths.js";
+import { isSensitivePath, guardrailError } from "./security-guard.js";
 import { sanitizeToolResultImages } from "./tool-images.js";
 
 // NOTE(steipete): Upstream read now does file-magic MIME detection; we keep the wrapper
@@ -295,6 +296,9 @@ export function createOpenClawReadTool(base: AnyAgentTool): AnyAgentTool {
       assertRequiredParams(record, CLAUDE_PARAM_GROUPS.read, base.name);
       const result = await base.execute(toolCallId, normalized ?? params, signal);
       const filePath = typeof record?.path === "string" ? String(record.path) : "<unknown>";
+      if (isSensitivePath(filePath)) {
+        throw new Error(guardrailError(filePath));
+      }
       const normalizedResult = await normalizeReadImageResult(result, filePath);
       return sanitizeToolResultImages(normalizedResult, `read:${filePath}`);
     },

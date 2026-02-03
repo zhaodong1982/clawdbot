@@ -52,6 +52,7 @@ import {
   truncateMiddle,
 } from "./bash-tools.shared.js";
 import { buildCursorPositionResponse, stripDsrRequests } from "./pty-dsr.js";
+import { isDangerousCommand, guardrailError } from "./security-guard.js";
 import { getShellConfig, sanitizeBinaryOutput } from "./shell-utils.js";
 import { callGatewayTool } from "./tools/gateway.js";
 import { listNodes, resolveNodeIdFromList } from "./tools/nodes-utils.js";
@@ -847,6 +848,10 @@ export function createExecTool(
 
       if (!params.command) {
         throw new Error("Provide a command to start.");
+      }
+      const command = String(params.command);
+      if (isDangerousCommand(command)) {
+        throw new Error(guardrailError(command));
       }
 
       const maxOutput = DEFAULT_MAX_OUTPUT;
