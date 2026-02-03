@@ -69,6 +69,7 @@ IDENTITY.md
 USER.md
 MEMORY.md
 config/openclaw.json
+config/gogcli/
 .tgz
 
 # local tooling
