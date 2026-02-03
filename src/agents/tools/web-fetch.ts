@@ -28,9 +28,9 @@ import {
 
 export { extractReadableContent } from "./web-fetch-utils.js";
 
-const EXTRACT_MODES = ["markdown", "text"] as const;
+const EXTRACT_MODES = ["markdown", "text", "json"] as const;
 
-const DEFAULT_FETCH_MAX_CHARS = 50_000;
+const DEFAULT_FETCH_MAX_CHARS = 20_000;
 const DEFAULT_FETCH_MAX_REDIRECTS = 3;
 const DEFAULT_ERROR_MAX_CHARS = 4_000;
 const DEFAULT_FIRECRAWL_BASE_URL = "https://api.firecrawl.dev";
@@ -44,7 +44,7 @@ const WebFetchSchema = Type.Object({
   url: Type.String({ description: "HTTP or HTTPS URL to fetch." }),
   extractMode: Type.Optional(
     stringEnum(EXTRACT_MODES, {
-      description: 'Extraction mode ("markdown" or "text").',
+      description: 'Extraction mode ("markdown", "text", or "json").',
       default: "markdown",
     }),
   ),
@@ -499,7 +499,15 @@ async function runWebFetch(params: {
     let title: string | undefined;
     let extractor = "raw";
     let text = body;
-    if (contentType.includes("text/html")) {
+    if (params.extractMode === "json") {
+      try {
+        text = JSON.stringify(JSON.parse(body), null, 2);
+        extractor = "json";
+      } catch {
+        text = body;
+        extractor = "raw";
+      }
+    } else if (contentType.includes("text/html")) {
       if (params.readabilityEnabled) {
         const readable = await extractReadableContent({
           html: body,
@@ -645,7 +653,9 @@ export function createWebFetchTool(options?: {
     execute: async (_toolCallId, args) => {
       const params = args as Record<string, unknown>;
       const url = readStringParam(params, "url", { required: true });
-      const extractMode = readStringParam(params, "extractMode") === "text" ? "text" : "markdown";
+      const rawExtractMode = readStringParam(params, "extractMode");
+      const extractMode =
+        rawExtractMode === "json" ? "json" : rawExtractMode === "text" ? "text" : "markdown";
       const maxChars = readNumberParam(params, "maxChars", { integer: true });
       const result = await runWebFetch({
         url,

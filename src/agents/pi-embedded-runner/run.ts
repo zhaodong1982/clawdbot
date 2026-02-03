@@ -68,6 +68,10 @@ function scrubAnthropicRefusalMagic(prompt: string): string {
   );
 }
 
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
 export async function runEmbeddedPiAgent(
   params: RunEmbeddedPiAgentParams,
 ): Promise<EmbeddedPiRunResult> {
@@ -304,6 +308,50 @@ export async function runEmbeddedPiAgent(
       }
 
       let overflowCompactionAttempted = false;
+
+      // Pre-emptive compaction: if we are already close to the limit, compact now.
+      // This is better than waiting for the provider to fail.
+      const shouldPreemptiveCompact = async () => {
+        if (!params.sessionFile) {
+          return false;
+        }
+        try {
+          const transcript = await fs.readFile(params.sessionFile, "utf-8");
+          const tokens = estimateTokens(transcript);
+          const threshold = ctxGuard.tokens * 0.8; // Compact at 80% usage
+          return tokens > threshold;
+        } catch {
+          return false;
+        }
+      };
+
+      if (!overflowCompactionAttempted && (await shouldPreemptiveCompact())) {
+        log.info(
+          `pre-emptive compaction triggered for ${provider}/${modelId} (approx 80%+ context used)`,
+        );
+        overflowCompactionAttempted = true;
+        await compactEmbeddedPiSessionDirect({
+          sessionId: params.sessionId,
+          sessionKey: params.sessionKey,
+          messageChannel: params.messageChannel,
+          messageProvider: params.messageProvider,
+          agentAccountId: params.agentAccountId,
+          authProfileId: lastProfileId,
+          sessionFile: params.sessionFile,
+          workspaceDir: params.workspaceDir,
+          agentDir,
+          config: params.config,
+          skillsSnapshot: params.skillsSnapshot,
+          provider,
+          model: modelId,
+          thinkLevel,
+          reasoningLevel: params.reasoningLevel,
+          bashElevated: params.bashElevated,
+          extraSystemPrompt: params.extraSystemPrompt,
+          ownerNumbers: params.ownerNumbers,
+        });
+      }
+
       try {
         while (true) {
           attemptedThinking.add(thinkLevel);

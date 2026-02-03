@@ -1,4 +1,4 @@
-export type ExtractMode = "markdown" | "text";
+export type ExtractMode = "markdown" | "text" | "json";
 
 function decodeEntities(value: string): string {
   return value
