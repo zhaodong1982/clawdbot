@@ -259,7 +259,7 @@ export async function runCronIsolatedAgentTurn(params: {
       const priceStatePath = path.join(workspaceDir, "memory", "price-state.json");
       if (fs.existsSync(priceStatePath)) {
         const data = JSON.parse(fs.readFileSync(priceStatePath, "utf-8"));
-        marketTruth = `\n\n[MARKET_TRUTH_DATA]\nThe current verified prices in memory are: BTC: $${data.BTC}, ETH: $${data.ETH}.\nReference these ONLY. Any other prices from your history/memory are EXPIRED and WRONG.\nAlso, ignore any pending email/file tasks from previous turns; focus ONLY on the current heartbeat.`;
+        marketTruth = `\n\n[MARKET_TRUTH_DATA]\nThe current verified prices in memory are: BTC: $${data.BTC}, ETH: $${data.ETH}.\nReference these ONLY. Any other prices from your history/memory are EXPIRED and WRONG.\nLast reported prices (for alert baseline): BTC: $${data.lastReportedBTC ?? data.BTC}, ETH: $${data.lastReportedETH ?? data.ETH}.\nAlso, ignore any pending email/file tasks from previous turns; focus ONLY on the current heartbeat.`;
       }
     } catch {
       /* ignore injection errors */

@@ -8,13 +8,11 @@ RUN corepack enable
 
 WORKDIR /app
 
-ARG OPENCLAW_DOCKER_APT_PACKAGES=""
-RUN if [ -n "$OPENCLAW_DOCKER_APT_PACKAGES" ]; then \
-  apt-get update && \
-  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $OPENCLAW_DOCKER_APT_PACKAGES && \
+RUN apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+  curl jq && \
   apt-get clean && \
-  rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*; \
-  fi
+  rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 # Install gog CLI (early to benefit from cache)
 RUN curl -L https://github.com/steipete/gogcli/releases/download/v0.9.0/gogcli_0.9.0_linux_arm64.tar.gz -o gogcli.tar.gz && \
