@@ -23,6 +23,26 @@ function readBuildInfo(): { builtAt?: string } | null {
   }
 }
 
+function readVersionFromBuildInfo(): string | null {
+  try {
+    const require = createRequire(import.meta.url);
+    const candidates = ["../build-info.json", "./build-info.json"];
+    for (const candidate of candidates) {
+      try {
+        const info = require(candidate) as { version?: string };
+        if (info.version) {
+          return info.version;
+        }
+      } catch {
+        // ignore missing candidate
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function formatBuildTime(iso?: string): string {
   if (!iso) return "dev";
   try {
@@ -56,6 +76,7 @@ export const VERSION =
   (typeof __OPENCLAW_VERSION__ === "string" && __OPENCLAW_VERSION__) ||
   process.env.OPENCLAW_BUNDLED_VERSION ||
   readVersionFromPackageJson() ||
+  readVersionFromBuildInfo() ||
   "0.0.0";
 
 export const BUILD_TIME = formatBuildTime(readBuildInfo()?.builtAt);

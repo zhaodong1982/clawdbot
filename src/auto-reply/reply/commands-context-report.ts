@@ -160,6 +160,7 @@ async function resolveContextReport(
     runtimeInfo,
     sandboxInfo,
     language: params.cfg?.agents?.defaults?.language,
+    memoryCitationsMode: params.cfg?.memory?.citations,
   });
 
   return buildSystemPromptReport({
