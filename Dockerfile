@@ -24,7 +24,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY ui/package.json ./ui/package.json
 COPY patches ./patches
 # Only copy the specific scripts needed for postinstall to avoid cache bust from other scripts
-COPY scripts/postinstall.js scripts/setup-git-hooks.js ./scripts/
+
 
 # Use cache mount for pnpm storage to avoid re-downloading
 # Skip project-level postinstall tasks (git hooks, etc.) during Docker build
